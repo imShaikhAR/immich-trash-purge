@@ -100,19 +100,22 @@ def delete_assets(ids: list):
         print("\nNo matching trashed assets found.")
         return
 
-    print(f"\n{'[DRY RUN] Would permanently delete' if DRY_RUN else 'Permanently deleting'} {len(ids)} asset(s)...")
+    total = len(ids)
+    print(f"\n{'[DRY RUN] Would permanently delete' if DRY_RUN else 'Permanently deleting'} {total} asset(s)...")
 
     if DRY_RUN:
         print("[DRY RUN] Set DRY_RUN=false in .env to perform actual deletion.")
         return
 
-    for i in range(0, len(ids), BATCH_SIZE):
+    deleted_so_far = 0
+    for i in range(0, total, BATCH_SIZE):
         batch = ids[i:i + BATCH_SIZE]
         result = request("DELETE", "/assets", json={"force": True, "ids": batch})
         if result is not None:
-            print(f"  ✅ Batch {i // BATCH_SIZE + 1}: deleted {len(batch)} assets")
+            deleted_so_far += len(batch)
+            print(f"  ✅ Deleted {deleted_so_far} / {total}")
         else:
-            print(f"  ❌ Batch {i // BATCH_SIZE + 1}: FAILED — check logs")
+            print(f"  ❌ Batch failed at offset {i} — {len(batch)} assets not deleted")
 
 
 def main():
