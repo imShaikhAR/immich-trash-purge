@@ -29,6 +29,19 @@ No files are deleted from disk — only database records are removed.
 ```bash
 git clone https://github.com/imShaikhAR/immich-trash-purge.git
 cd immich-trash-purge
+```
+
+It is recommended to use a virtual environment to keep dependencies isolated:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate        # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Or without a venv (installs globally):
+
+```bash
 pip install -r requirements.txt
 ```
 
