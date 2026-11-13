@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 immich-trash-purge
-Permanently delete trashed assets from Immich external libraries
-by matching a specific originalPath prefix.
+Permanently delete trashed assets from Immich internal uploads or external libraries
+by matching a specific originalPath directory prefix.
 
 Author: imShaikhAR
 License: MIT
@@ -18,7 +18,7 @@ load_dotenv()
 # ── CONFIG (from .env or edit directly) ─────────────────────────────────────
 IMMICH_URL  = os.getenv("IMMICH_URL", "http://localhost:2283").rstrip("/")
 API_KEY     = os.getenv("IMMICH_API_KEY", "")
-PATH_PREFIX = os.getenv("PATH_PREFIX", "/your/external/library/path/")
+PATH_PREFIX = os.getenv("PATH_PREFIX", "/your/library/folder/")
 DRY_RUN     = os.getenv("DRY_RUN", "true").lower() == "true"
 BATCH_SIZE  = int(os.getenv("BATCH_SIZE", "100"))
 # ────────────────────────────────────────────────────────────────────────────
@@ -58,9 +58,10 @@ def test_connection() -> bool:
 
 def search_trashed_assets(path_prefix: str) -> list:
     """
-    Return IDs of all trashed assets whose originalPath starts with path_prefix.
-    Uses POST /api/search/metadata with withDeleted=True.
+    Return IDs of trashed assets under the specified originalPath directory.
+    Immich search is a substring match, so locally verify exact directory boundaries.
     """
+    directory_prefix = path_prefix.rstrip("/") + "/"
     ids = []
     page = 1
 
@@ -68,7 +69,7 @@ def search_trashed_assets(path_prefix: str) -> list:
         data = request("POST", "/search/metadata", json={
             "withDeleted": True,
             "trashedAfter": "2000-01-01T00:00:00.000Z",
-            "originalPath": path_prefix,
+            "originalPath": directory_prefix,
             "page": page,
             "size": BATCH_SIZE,
         })
@@ -82,8 +83,11 @@ def search_trashed_assets(path_prefix: str) -> list:
             break
 
         for asset in items:
+            original_path = asset.get("originalPath") or ""
+            if not original_path.startswith(directory_prefix):
+                continue
             ids.append(asset["id"])
-            print(f"  [{asset['id'][:8]}...] {asset.get('originalPath', 'N/A')}")
+            print(f"  [{asset['id'][:8]}...] {original_path}")
 
         # nextPage is None when no further pages exist
         if data.get("assets", {}).get("nextPage") is None:

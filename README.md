@@ -1,18 +1,18 @@
 # immich-trash-purge
 
-Permanently delete trashed assets from [Immich](https://immich.app) external libraries by matching a specific `originalPath` prefix.
+Permanently delete trashed assets from [Immich](https://immich.app) **internal uploads and external libraries** by matching a specific `originalPath` directory prefix.
 
-Useful when files have been deleted from disk in an external library, Immich has moved them to Trash on rescan, but **Empty Trash** doesn't work for externally-removed assets (a [known Immich bug](https://github.com/immich-app/immich/issues/26601)).
+Supports trashed internal uploads (including storage-template locations) and external-library assets. It is also useful when files have been deleted from disk in an external library, Immich has moved them to Trash on rescan, but **Empty Trash** doesn't work for externally-removed assets (a [known Immich bug](https://github.com/immich-app/immich/issues/26601)).
 
 ---
 
 ## How It Works
 
-1. Calls `POST /api/search/metadata` with `withDeleted: true` to find all trashed assets matching your path prefix
-2. Displays the matched assets for review
-3. Calls `DELETE /api/assets` with `force: true` to permanently remove them from the Immich database
+1. Calls `POST /api/search/metadata` with `withDeleted: true` and a trash-date filter to search for assets under your path
+2. Checks that each returned `originalPath` begins with the exact directory prefix, then displays the matches for review
+3. Calls `DELETE /api/assets` with `force: true` to request permanent deletion through Immich
 
-No files are deleted from disk — only database records are removed.
+**Deletion affects both the database and filesystem.** Immich removes associated files (including original files still on disk when applicable) as part of its permanent-deletion processing. This is expected and irreversible.
 
 ---
 
@@ -64,8 +64,9 @@ IMMICH_URL=http://localhost:2283
 # API key: Immich Web UI → Account Settings → API Keys → New Key
 IMMICH_API_KEY=your_api_key_here
 
-# Path prefix to match — must match the start of originalPath in Immich
-# Tip: open any trashed asset in the Immich web UI to find its originalPath
+# Directory prefix for internal uploads OR external libraries
+# Use the path stored in Immich's originalPath, not necessarily the host path
+# A trailing slash is optional; similarly named sibling folders are excluded
 PATH_PREFIX=/mnt/nas/photos/old-folder/
 
 # Always start with DRY_RUN=true to verify before deleting
@@ -77,6 +78,8 @@ BATCH_SIZE=100
 
 > **How to find the right PATH_PREFIX:**  
 > In the Immich web UI, go to Trash, open any affected asset, and look at the file path shown in its details panel. Copy the folder portion as your `PATH_PREFIX`.
+
+For example, internal paths may be under `/data/upload/` or `/data/library/`, while an external library might use `/mnt/nas/photos/`. The actual path varies by installation. Matching is **case-sensitive** and requires a directory boundary: `/photos/old/` will not select `/photos/old-copy/` or `/archive/photos/old/`.
 
 ---
 
@@ -139,9 +142,10 @@ Done.
 
 ## Notes
 
-- **Database only** — this script removes Immich database records. It does not touch any files on disk.
-- **External libraries only** — assets from internal Immich uploads are not affected unless their `originalPath` matches your prefix.
-- **`force: true`** — deletion bypasses the Immich trash entirely, making it permanent and immediate.
+- **Internal and external libraries** — both are supported; selection is based on the configured `originalPath` directory, not library type.
+- **Database and files** — Immich's permanent-deletion process removes database records and associated files, including original media still on disk when applicable.
+- **Strict directory matching** — the script checks results locally because Immich's search API can return substring matches outside the requested folder.
+- **`force: true`** — requests permanent deletion without another trash/restore step; Immich processes the deletion jobs asynchronously.
 - **Pagination** — the script handles large trash bins automatically, fetching 100 assets per page.
 - **IMMICH_URL** — do not include `/api` at the end. The script appends it automatically.
 
