@@ -74,6 +74,9 @@ DRY_RUN=true
 
 # Batch size for API calls (max 100)
 BATCH_SIZE=100
+
+# Timeout in seconds for each API request attempt (default: 30)
+REQUEST_TIMEOUT=30
 ```
 
 > **How to find the right PATH_PREFIX:**  
@@ -122,7 +125,7 @@ Verify the matched paths look correct. Make sure `PATH_PREFIX` is specific enoug
 
 ### Step 3 — Live deletion
 
-Set `DRY_RUN=false` in your `.env`, then re-run:
+Set `DRY_RUN=false` in your `.env`, or use `--delete` to override dry-run mode, then re-run:
 
 ```bash
 python delete_trashed.py
@@ -133,10 +136,34 @@ The script will ask for confirmation before deleting:
 ```
 Type 'yes' to permanently delete these assets: yes
 
-  ✅ Batch 1: deleted 47 assets
+  ✅ Deleted 47 / 47
 
 Done.
 ```
+
+---
+
+## CLI Options and Reports
+
+Command-line options override matching values in `.env`. By default, the script uses the existing `.env` settings.
+
+```bash
+# Dry-run an internal folder and save both report formats
+python delete_trashed.py --path /data/library/photos/ --dry-run --report-json preview.json --report-csv preview.csv
+
+# Request permanent deletion in an external folder, with a 45-second request timeout
+python delete_trashed.py --path /mnt/nas/photos/ --delete --timeout 45 --report-json deletion.json
+
+# Show all options
+python delete_trashed.py --help
+```
+
+- `--path PATH` overrides `PATH_PREFIX` for that run (internal and external directories work the same way).
+- `--dry-run` forces a preview; `--delete` requests permanent deletion and **still asks for confirmation**. If neither is given, `DRY_RUN` controls the mode.
+- `--timeout SECONDS` overrides `REQUEST_TIMEOUT` (default `30`). This applies to each API request attempt; existing retries remain enabled.
+- `--report-json FILE` and `--report-csv FILE` optionally save the matched asset IDs, `originalPath` values, and outcomes. You can specify both.
+
+Report statuses are `dry_run` (preview only), `aborted` (confirmation declined), `request_accepted` (Immich accepted the deletion API request), and `request_unconfirmed` (request failed or timed out; verify in Immich before retrying). **An accepted request does not prove Immich has finished its background deletion jobs.** Reports do not contain the API key. If no assets match, requested reports are still created with an empty asset list.
 
 ---
 
